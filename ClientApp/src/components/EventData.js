@@ -26,7 +26,7 @@ export class EventData extends Component {
         </thead>
         <tbody>
             <tr key={event.eventId}>
-                    <td>{event.eventId}</td>
+            <td>{event.eventId}</td>
             <td>{event.possibleAttendance}</td>
             <td>{event.currentAttendance}</td>
             </tr>
@@ -43,7 +43,7 @@ export class EventData extends Component {
     return (
       <div>
         <h1>Event Data</h1>
-        <p>This component demonstrates fetching data from the server.</p>
+        <p>The current event data for the event.</p>
         {contents}
       </div>
     );
