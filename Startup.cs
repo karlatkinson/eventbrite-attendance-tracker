@@ -26,6 +26,10 @@ namespace eventbrite
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
 
             var eventbriteAuthToken = Configuration.GetValue<string>("EventbriteApi:AuthToken");
+            if(string.IsNullOrEmpty(eventbriteAuthToken))
+            {
+                throw new NullReferenceException("Eventbrite auth token must be set");
+            }
             services.AddHttpClient("eventbrite", c =>
             {
                 c.BaseAddress = new Uri("https://www.eventbriteapi.com/");
