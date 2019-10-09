@@ -7,41 +7,59 @@ namespace eventbrite.Controllers
     using System.Runtime.Serialization;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Mvc;
+    using Microsoft.Extensions.Logging;
     using Newtonsoft.Json;
 
     [Route("api/[controller]")]
     public class EventbriteController : Controller
     {
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly ILogger<EventbriteController> _logger;
 
-        public EventbriteController(IHttpClientFactory httpClientFactory)
+        public EventbriteController(IHttpClientFactory httpClientFactory, ILogger<EventbriteController> logger)
         {
             _httpClientFactory = httpClientFactory;
+            _logger = logger;
         }
 
         [HttpGet("[action]")]
-        public async Task<EventStatus> EventStatus()
+        public async Task<List<EventStatus>> EventStatus()
         {
             var httpClient = _httpClientFactory.CreateClient("eventbrite");
 
-            var attendees = await httpClient.GetAsync("/v3/events/74714941401/attendees/");
-            attendees.EnsureSuccessStatusCode();
-            var eventAttendeeData = await attendees.Content.ReadAsAsync<EventAttendeeData>();
+            var events = await httpClient.GetAsync("/v3/organizations/104810307145/events/");
+            events.EnsureSuccessStatusCode();
+            var eventData = await events.Content.ReadAsAsync<EventData>();
 
-            return new EventStatus
+           
+            var eventStatuses = new List<EventStatus>();
+            foreach (var item in eventData.Events)
             {
-                EventId = "74714941401",
-                PossibleAttendance = eventAttendeeData.Attendees.Count,
-                CurrentAttendance = eventAttendeeData.Attendees.Count(x => x.CheckedIn)
-            };
+                var attendees = await httpClient.GetAsync($"/v3/events/{item.Id}/attendees/");
+                attendees.EnsureSuccessStatusCode();
+                var eventAttendeeData = await attendees.Content.ReadAsAsync<EventAttendeeData>();
+                var eventStatus = new EventStatus
+                {
+                    EventId = "74714941401",
+                    EventName = item.Name.Text,
+                    EventDate = item.Start.Local,
+                    PossibleAttendance = eventAttendeeData.Attendees.Count,
+                    CurrentAttendance = eventAttendeeData.Attendees.Count(x => x.CheckedIn)
+                };
+                eventStatuses.Add(eventStatus);
+            }
+
+            return eventStatuses.OrderBy(x=>x.EventDate).ToList();
         }
     }
 
     public class EventStatus
     {
         public string EventId { get; set; }
+        public string EventName { get; set; }
         public int PossibleAttendance { get; set; }
         public int CurrentAttendance { get; set; }
+        public DateTime EventDate { get; set; }
     }
 
     public partial class EventAttendeeData
@@ -109,4 +127,24 @@ namespace eventbrite.Controllers
         public bool HasMoreItems { get; set; }
     }
 
+    public class EventData
+    {
+        public Pagination Pagination { get; set; }
+        public List<Event> Events { get; set; }
+    }
+
+    public class Event
+    {
+        public string Id { get; set; }
+        public EventName Name { get; set; }
+        public EventDateTime Start { get; set; }
+    }
+
+    public class EventName {
+        public string Text { get; set; }
+    }
+
+    public class EventDateTime {
+        public DateTime Local { get; set; }
+    }
 }
