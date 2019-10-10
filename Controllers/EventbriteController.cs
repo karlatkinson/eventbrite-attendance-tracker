@@ -30,26 +30,37 @@ namespace eventbrite.Controllers
             var events = await httpClient.GetAsync("/v3/organizations/104810307145/events/");
             events.EnsureSuccessStatusCode();
             var eventData = await events.Content.ReadAsAsync<EventData>();
-
            
             var eventStatuses = new List<EventStatus>();
             foreach (var item in eventData.Events)
             {
-                var attendees = await httpClient.GetAsync($"/v3/events/{item.Id}/attendees/");
-                attendees.EnsureSuccessStatusCode();
-                var eventAttendeeData = await attendees.Content.ReadAsAsync<EventAttendeeData>();
-                var eventStatus = new EventStatus
-                {
-                    EventId = "74714941401",
-                    EventName = item.Name.Text,
-                    EventDate = item.Start.Local,
-                    PossibleAttendance = eventAttendeeData.Attendees.Count,
-                    CurrentAttendance = eventAttendeeData.Attendees.Count(x => x.CheckedIn)
-                };
+                var eventStatus = await GetEventStatus(httpClient, item);
                 eventStatuses.Add(eventStatus);
             }
 
             return eventStatuses.OrderBy(x=>x.EventDate).ToList();
+        }
+
+        private async Task<EventStatus> GetEventStatus(HttpClient httpClient, Event item)
+        {
+            var attendees = await httpClient.GetAsync($"/v3/events/{item.Id}/attendees/");
+            attendees.EnsureSuccessStatusCode();
+            var eventAttendeeData = await attendees.Content.ReadAsAsync<EventAttendeeData>();
+            var eventStatus = MapEventStatus(item, eventAttendeeData);
+            return eventStatus;
+        }
+
+        private EventStatus MapEventStatus(Event item, EventAttendeeData eventAttendeeData)
+        {
+            var eventStatus = new EventStatus
+            {
+                EventId = item.Id,
+                EventName = item.Name.Text,
+                EventDate = item.Start.Local,
+                PossibleAttendance = eventAttendeeData.Attendees.Count,
+                CurrentAttendance = eventAttendeeData.Attendees.Count(x => x.CheckedIn)
+            };
+            return eventStatus;;
         }
     }
 
